@@ -11,6 +11,7 @@ out_dir="$script_dir/out"
 # Media file names
 input_file="$(realpath $1)"
 output_file="$out_dir/out_rx.bin"
+output_file2="$out_dir/out_rx2.bin"
 
 # Video parameters
 duration="${2:-10}"
@@ -27,8 +28,11 @@ wait_interval=$((duration + 5))
 # Stdout/stderr forwarded output file names
 tx_media_proxy_out="$out_dir/out_tx_media_proxy.txt"
 rx_media_proxy_out="$out_dir/out_rx_media_proxy.txt"
-sender_app_out="$out_dir/out_sender_app.txt"
-recver_app_out="$out_dir/out_recver_app.txt"
+sender_app1_out="$out_dir/out_sender_app1.txt"
+recver_app1_out="$out_dir/out_recver_app1.txt"
+sender_app2_out="$out_dir/out_sender_app2.txt"
+recver_app2_out="$out_dir/out_recver_app2.txt"
+
 
 # Number of test repetitions
 repeat_number=1
@@ -67,7 +71,7 @@ function wait_text() {
     # 1st argument is a timeout interval
     # 2nd argument is a file to be monitored
     # 3rd argument is a text to be looked for in the file
-    timeout $1 grep -q "$3" <(tail -n 100 -f "$2")
+    timeout $1 grep -q "$3" <(tail -n 100000 -f "$2")
     [ $? -eq 124 ] && error "timeout occurred" && return 1
     return 0
 }
@@ -77,7 +81,7 @@ function wait_completion() {
     info "Waiting for both sender and receiver to complete (interval ${1}s)"
     local end_time=$((SECONDS + $1))
 
-    while kill -0 $sender_app_pid 2>/dev/null && kill -0 $recver_app_pid 2>/dev/null; do
+    while kill -0 $sender_app1_pid 2>/dev/null && kill -0 $recver_app1_pid 2>/dev/null && kill -0 $sender_app2_pid 2>/dev/null && kill -0 $recver_app2_pid 2>/dev/null; do
     if (( SECONDS >= end_time )); then
          error "timeout occurred"
          return 1
@@ -92,8 +96,11 @@ function wait_completion() {
 function shutdown_apps() {
     info "Shutting down apps"
 
-    kill "$sender_app_pid" &>/dev/null
-    kill "$recver_app_pid" &>/dev/null
+    kill "$sender_app1_pid" &>/dev/null
+    kill "$recver_app1_pid" &>/dev/null
+
+    kill "$sender_app2_pid" &>/dev/null
+    kill "$recver_app2_pid" &>/dev/null
 
     kill "$tx_media_proxy_pid" &>/dev/null
     kill "$rx_media_proxy_pid" &>/dev/null
@@ -112,11 +119,26 @@ function check_results() {
         info "Input and output files are identical"
     fi
 
+    diff "$input_file" "$output_file2"
+    if [ $? -ne 0 ]; then
+        error=1
+        error "An error occurred while comparing input and output2 files"
+        info "Output file size: $(stat -c%s $output_file2) byte(s)"
+    else
+        info "Input and output2 files are identical"
+    fi
+
     # Check output for errors
-    grep "error\|fail\|invalid" -i "$sender_app_out" /dev/null
+    grep "error\|fail\|invalid" -i "$sender_app1_out" /dev/null
     [ $? -eq 0 ] && error=1 && error "Error signature(s) found in the sender_app output"
 
-    grep "error\|fail\|invalid" -i "$recver_app_out" /dev/null
+    grep "error\|fail\|invalid" -i "$recver_app1_out" /dev/null
+    [ $? -eq 0 ] && error=1 && error "Error signature(s) found in the recver_app output"
+
+    grep "error\|fail\|invalid" -i "$sender_app2_out" /dev/null
+    [ $? -eq 0 ] && error=1 && error "Error signature(s) found in the sender_app output"
+
+    grep "error\|fail\|invalid" -i "$recver_app2_out" /dev/null
     [ $? -eq 0 ] && error=1 && error "Error signature(s) found in the recver_app output"
 
     grep "error" -i "$tx_media_proxy_out" /dev/null
@@ -146,49 +168,72 @@ function run_test_rdma() {
     info "Starting Tx side media_proxy"
     local tx_media_proxy_cmd="media_proxy -t 8002"
     run_in_background "$bin_dir/$tx_media_proxy_cmd" "$tx_media_proxy_out"
-    tx_media_proxy_pid="$!"
+    tx_media_proxy_pid=$!
 
     sleep 1
 
     info "Starting Rx side media_proxy"
     local rx_media_proxy_cmd="media_proxy -t 8003"
     run_in_background "$bin_dir/$rx_media_proxy_cmd" "$rx_media_proxy_out"
-    rx_media_proxy_pid="$!"
-
+    rx_media_proxy_pid=$!
     sleep 1
-
-    info "Starting recver_app"
-    export MCM_MEDIA_PROXY_PORT=8003
-    local recver_app_cmd="recver_app -r $rdma_iface_ip -t rdma -w $width -h $height -f $fps -x $pixel_format -b $output_file -o auto"
-    run_in_background "$bin_dir/$recver_app_cmd" "$recver_app_out"
-    recver_app_pid="$!"
-
 
     info "Starting sender_app"
     export MCM_MEDIA_PROXY_PORT=8002
-    local sender_app_cmd="sender_app -s $rdma_iface_ip -t rdma -w $width -h $height -f $fps -x $pixel_format -b $input_file -n $frames_number -o auto"
-    run_in_background "$bin_dir/$sender_app_cmd" "$sender_app_out"
-    sender_app_pid="$!"
+    local sender_app_cmd="sender_app -s $rdma_iface_ip -p 9008 -t rdma -w $width -h $height -f $fps -x $pixel_format -b $input_file -n $frames_number -o auto"
+    run_in_background "$bin_dir/$sender_app_cmd" "$sender_app1_out"
+    sender_app1_pid=$!
+    sleep 1
+    info "Starting recver_app 2"
+    export MCM_MEDIA_PROXY_PORT=8003
+    local recver_app_cmd="recver_app -r $rdma_iface_ip -i 9008 -t rdma -w $width -h $height -f $fps -x $pixel_format -b $output_file2 -o auto"
+    run_in_background "$bin_dir/$recver_app_cmd" "$recver_app2_out"
+    recver_app2_pid=$!
+    sleep 1
+
+    info "Starting recver_app 1"
+    export MCM_MEDIA_PROXY_PORT=8002
+    local recver_app_cmd="recver_app -r $rdma_iface_ip -i 9999 -t rdma -w $width -h $height -f $fps -x $pixel_format -b $output_file -o auto"
+    run_in_background "$bin_dir/$recver_app_cmd" "$recver_app1_out"
+    recver_app1_pid=$!
+
+
+    info "Starting sender_app 2"
+    export MCM_MEDIA_PROXY_PORT=8003
+    local sender_app_cmd="sender_app -s $rdma_iface_ip -p 9999 -t rdma -w $width -h $height -f $fps -x $pixel_format -b $input_file -n $frames_number -o auto"
+    run_in_background "$bin_dir/$sender_app_cmd" "$sender_app2_out"
+    sender_app2_pid=$!
+    sleep 1
 
     info "Waiting for recver_app to connect to Rx media_proxy"
-    wait_text 10 $recver_app_out "Success connect to MCM media-proxy"
-    local recver_app_timeout="$?"
+    wait_text 10 $recver_app1_out "Success connect to MCM media-proxy"
+    local recver_app_timeout=$?
+    [ $recver_app_timeout -eq 0 ] && info "Connection established"
+
+    info "Waiting for recver_app to connect to Rx media_proxy"
+    wait_text 10 $recver_app2_out "Success connect to MCM media-proxy"
+    local recver_app_timeout=$?
     [ $recver_app_timeout -eq 0 ] && info "Connection established"
 
     info "Waiting for sender_app to connect to Tx media_proxy"
-    wait_text 10 $sender_app_out "Success connect to MCM media-proxy"
-    local sender_app_timeout="$?"
+    wait_text 10 $sender_app1_out "Success connect to MCM media-proxy"
+    local sender_app_timeout=$?
+    [ $sender_app_timeout -eq 0 ] && info "Connection established"
+
+    info "Waiting for sender_app to connect to Tx media_proxy"
+    wait_text 10 $sender_app2_out "Success connect to MCM media-proxy"
+    local sender_app_timeout=$?
     [ $sender_app_timeout -eq 0 ] && info "Connection established"
 
     wait_completion "$wait_interval"
-    local timeout="$?"
+    local timeout=$?
 
     sleep 1
 
     shutdown_apps
 
     check_results
-    local error="$?"
+    local error=$?
 
     info "Tx media_proxy stats"
     local regex="throughput ([0-9]*\.[0-9]*) Mb/s: [0-9]*\.[0-9]* Mb/s, cpu busy ([0-9]*\.[0-9]*)"
