@@ -17,3 +17,15 @@ target_link_libraries(sender_app PRIVATE mcm_dp)
 add_executable(recver_app recver_app.c)
 target_include_directories(recver_app PRIVATE ../include)
 target_link_libraries(recver_app PRIVATE mcm_dp)
+
+add_executable(ping_sender_app ping_sender_app.c)
+target_include_directories(ping_sender_app PRIVATE ../include)
+target_link_libraries(ping_sender_app PRIVATE mcm_dp)
+
+add_executable(ping_recver_app ping_recver_app.c)
+target_include_directories(ping_recver_app PRIVATE ../include)
+target_link_libraries(ping_recver_app PRIVATE mcm_dp)
+
+add_executable(ping_responder_app ping_responder_app.c)
+target_include_directories(ping_responder_app PRIVATE ../include)
+target_link_libraries(ping_responder_app PRIVATE mcm_dp)

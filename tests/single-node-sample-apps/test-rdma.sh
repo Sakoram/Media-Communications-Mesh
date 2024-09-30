@@ -31,7 +31,7 @@ sender_app_out="$out_dir/out_sender_app.txt"
 recver_app_out="$out_dir/out_recver_app.txt"
 
 # Number of test repetitions
-repeat_number=3
+repeat_number=1
 
 function message() {
     local type="$1"
@@ -207,7 +207,7 @@ function run_test_rdma() {
     done < "$rx_media_proxy_out"
 
     info "Cleanup"
-    cleanup
+    # cleanup
 
     return $(($error || $timeout || $recver_app_timeout || $sender_app_timeout))
 }

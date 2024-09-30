@@ -153,8 +153,24 @@ int tx_rdma_on_receive(memif_conn_handle_t conn, void *priv_data, uint16_t qid)
         return err;
     }
 
+        struct timespec ts_recv = {};
+        clock_gettime(CLOCK_REALTIME, &ts_recv);
+        struct timespec ts_send = *(struct timespec *)shm_bufs.data;
+
+        double latency_us = 1000000.0 * (ts_recv.tv_sec - ts_send.tv_sec);
+        latency_us += (ts_recv.tv_nsec - ts_send.tv_nsec) / 1000.0;
+        printf("#@#@#@ before memcpy tx  latency: %0.1lf us\n", latency_us);
+
     /* TODO: Use memif buffer directly. It has to be registered by libfabric */
     memcpy(tx_ctx->ep_ctx->data_buf, shm_bufs.data, shm_bufs.len);
+
+        clock_gettime(CLOCK_REALTIME, &ts_recv);
+        ts_send = *(struct timespec *)shm_bufs.data;
+
+         latency_us = 1000000.0 * (ts_recv.tv_sec - ts_send.tv_sec);
+        latency_us += (ts_recv.tv_nsec - ts_send.tv_nsec) / 1000.0;
+        printf("#@#@#@ after memcpy tx  latency: %0.1lf us\n", latency_us);
+
     ep_send_buf(tx_ctx->ep_ctx, tx_ctx->ep_ctx->data_buf, shm_bufs.len);
 
     err = memif_refill_queue(conn, qid, buf_num, 0);

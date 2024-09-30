@@ -347,7 +347,14 @@ static void *rx_rdma_frame_thread(void *arg)
 
     printf("%s(%d), start\n", __func__, s_ctx->idx);
     while (!s_ctx->stop) {
+        struct timespec ts_recv = {};
         ep_recv_buf(cp_ctx, cp_ctx->data_buf, s_ctx->transfer_size);
+        clock_gettime(CLOCK_REALTIME, &ts_recv);
+        struct timespec ts_send = *(struct timespec *)cp_ctx->data_buf;
+
+        double latency_us = 1000000.0 * (ts_recv.tv_sec - ts_send.tv_sec);
+        latency_us += (ts_recv.tv_nsec - ts_send.tv_nsec) / 1000.0;
+        printf("#@#@#@ rdma_session rx  latency: %0.1lf us\n", latency_us);
         rx_rdma_consume_frame(s_ctx, cp_ctx->data_buf);
     }
 
