@@ -292,7 +292,7 @@ function full_build_and_install_workflow()
     log_info Starting: Dependencies build, install and configation.
     lib_install_grpc && \
     lib_install_xdp_bpf_tools && \
-    lib_install_fabrics && \
+    # lib_install_fabrics && \
     lib_install_dpdk && \
     lib_install_mtl && \
     lib_install_jpeg_xs && \

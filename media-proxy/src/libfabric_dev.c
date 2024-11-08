@@ -102,7 +102,7 @@ int rdma_init(libfabric_ctx **ctx)
         return -ENOMEM;
     }
 
-    hints->fabric_attr->prov_name = strdup("verbs");
+    hints->fabric_attr->prov_name = strdup("efa");
 
     hints->caps = FI_MSG;
     hints->domain_attr->resource_mgmt = FI_RM_ENABLED; /* TODO: check performance */
