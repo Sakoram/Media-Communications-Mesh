@@ -208,7 +208,7 @@ function full_build_and_install_workflow()
 {
     set -x
     lib_install_xdp_bpf_tools
-    lib_install_fabrics
+    # lib_install_fabrics
     lib_install_mtl_and_dpdk
     lib_install_grpc
     lib_install_jpeg_xs
@@ -234,12 +234,12 @@ prompt Starting: OS packages installation, MTL and DPDK download.
 install_ubuntu_package_dependencies
 lib_download_mtl_and_dpdk
 prompt Finished: OS packages installation, MTL and DPDK download.
-prompt Starting: Intel drivers download and patch apply.
-get_and_patch_intel_drivers
-prompt Finished: Intel drivers download and patch apply.
-prompt Starting: Build, install and configuration of Intel drivers.
-build_install_and_config_intel_drivers
-prompt Finished: Build, install and configuration of Intel drivers.
+# prompt Starting: Intel drivers download and patch apply.
+# get_and_patch_intel_drivers
+# prompt Finished: Intel drivers download and patch apply.
+# prompt Starting: Build, install and configuration of Intel drivers.
+# build_install_and_config_intel_drivers
+# prompt Finished: Build, install and configuration of Intel drivers.
 prompt Starting: Dependencies build, install and configation.
 full_build_and_install_workflow
 prompt Finished: Dependencies build, install and configation.
